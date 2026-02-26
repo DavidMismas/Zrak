@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 import WidgetKit
 
@@ -42,6 +43,7 @@ struct AirQualityWidgetEntry: TimelineEntry {
     let date: Date
     let station: WidgetSharedStation?
     let chartRange: WidgetChartRange
+    let isPremiumUnlocked: Bool
 }
 
 struct AirQualityWidgetProvider: AppIntentTimelineProvider {
@@ -49,30 +51,69 @@ struct AirQualityWidgetProvider: AppIntentTimelineProvider {
     typealias Intent = StationSelectionIntent
 
     func placeholder(in context: Context) -> AirQualityWidgetEntry {
-        AirQualityWidgetEntry(date: Date(), station: sampleStation, chartRange: .h24)
+        AirQualityWidgetEntry(date: Date(), station: sampleStation, chartRange: .h24, isPremiumUnlocked: false)
     }
 
     func snapshot(for configuration: StationSelectionIntent, in context: Context) async -> AirQualityWidgetEntry {
-        makeEntry(configuration: configuration)
+        await makeEntry(configuration: configuration)
     }
 
     func timeline(for configuration: StationSelectionIntent, in context: Context) async -> Timeline<AirQualityWidgetEntry> {
-        let entry = makeEntry(configuration: configuration)
+        let entry = await makeEntry(configuration: configuration)
         let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
         return Timeline(entries: [entry], policy: .after(nextRefresh))
     }
 
-    private func makeEntry(configuration: StationSelectionIntent) -> AirQualityWidgetEntry {
+    private func makeEntry(configuration: StationSelectionIntent) async -> AirQualityWidgetEntry {
         let payload = WidgetSharedStore.readPayload()
         let selectedCode = configuration.station?.id
+        let isPremiumUnlocked = await resolvePremiumAccess()
 
         let station = payload?.stations.first(where: { $0.code == selectedCode }) ?? payload?.stations.first
 
         return AirQualityWidgetEntry(
             date: Date(),
             station: station,
-            chartRange: configuration.chartRange
+            chartRange: configuration.chartRange,
+            isPremiumUnlocked: isPremiumUnlocked
         )
+    }
+
+    private func resolvePremiumAccess() async -> Bool {
+        if PremiumAccessSharedStore.readIsPremiumUnlocked() {
+            return true
+        }
+
+        if await hasPremiumEntitlement() {
+            return true
+        }
+
+        return await WidgetDistributionChannel.currentIsTestFlight()
+    }
+
+    private func hasPremiumEntitlement() async -> Bool {
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else {
+                continue
+            }
+
+            guard WidgetPremiumConfig.productIDs.contains(transaction.productID) else {
+                continue
+            }
+
+            if transaction.revocationDate != nil {
+                continue
+            }
+
+            if let expirationDate = transaction.expirationDate,
+               expirationDate < Date() {
+                continue
+            }
+
+            return true
+        }
+
+        return false
     }
 
     private var sampleStation: WidgetSharedStation {
@@ -105,11 +146,52 @@ struct AirQualityWidgetProvider: AppIntentTimelineProvider {
     }
 }
 
+enum WidgetDistributionChannel {
+    static func currentIsTestFlight() async -> Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        do {
+            let verification = try await AppTransaction.shared
+
+            switch verification {
+            case .verified(let appTransaction):
+                return appTransaction.environment == .sandbox
+
+            case .unverified(let appTransaction, _):
+                return appTransaction.environment == .sandbox
+            }
+        } catch {
+            return false
+        }
+        #endif
+    }
+}
+
+private enum WidgetPremiumConfig {
+    static let productIDs: Set<String> = [
+        "com.david.Zrak.premium.lifetime"
+    ]
+}
+
 struct ZrakWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
     let entry: AirQualityWidgetEntry
 
     var body: some View {
+        if !isPremiumUnlocked {
+            lockedView
+        } else {
+            unlockedBody
+        }
+    }
+
+    private var isPremiumUnlocked: Bool {
+        entry.isPremiumUnlocked || PremiumAccessSharedStore.readIsPremiumUnlocked()
+    }
+
+    @ViewBuilder
+    private var unlockedBody: some View {
         switch family {
         case .systemSmall:
             smallView
@@ -119,6 +201,25 @@ struct ZrakWidgetEntryView: View {
             largeView
         default:
             smallView
+        }
+    }
+
+    private var lockedView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+
+            Text("Widget je del Premium")
+                .font(.headline)
+                .lineLimit(2)
+
+            Text("Odkleni v aplikaciji Zrak.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
         }
     }
 
@@ -466,6 +567,7 @@ struct ZrakWidget: Widget {
                 WidgetSharedChartPoint(timestamp: .now, value: 12)
             ]
         ),
-        chartRange: .h24
+        chartRange: .h24,
+        isPremiumUnlocked: true
     )
 }

@@ -2,28 +2,35 @@ import SwiftUI
 import UIKit
 
 struct ExperimentalAirQualityMapView: View {
+    @EnvironmentObject private var premiumManager: PremiumManager
     let stations: [StationMapItem]
     let lastUpdated: Date?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                headerCard
+        Group {
+            if premiumManager.hasPremiumAccess {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        headerCard
 
-                SloveniaInterpolationHeatmap(stations: stations)
-                    .frame(maxWidth: .infinity)
-                    .padding(10)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        SloveniaInterpolationHeatmap(stations: stations)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Legenda barv")
-                        .font(.caption.weight(.semibold))
-                    AirQualityLegendView()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Legenda barv")
+                                .font(.caption.weight(.semibold))
+                            AirQualityLegendView()
+                        }
+                        .padding(12)
+                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .padding()
                 }
-                .padding(12)
-                .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                lockedContent
             }
-            .padding()
         }
         .navigationTitle("Eksperimentalni prikaz")
         .navigationBarTitleDisplayMode(.inline)
@@ -45,6 +52,22 @@ struct ExperimentalAirQualityMapView: View {
         }
         .padding(12)
         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var lockedContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Eksperimentalni prikaz je del Premium")
+                .font(.headline)
+            Text("Ta pogled prikazuje interpolirano stanje po celi Sloveniji in je na voljo v Zrak Premium.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button("Odkleni Premium") {
+                premiumManager.presentPaywall(for: .experimentalMap)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -412,5 +435,6 @@ private struct SloveniaSilhouetteShape: Shape {
 #Preview {
     NavigationStack {
         ExperimentalAirQualityMapView(stations: [], lastUpdated: .now)
+            .environmentObject(PremiumManager.preview(unlocked: true))
     }
 }

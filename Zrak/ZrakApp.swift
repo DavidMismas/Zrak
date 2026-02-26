@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct ZrakApp: App {
+    @StateObject private var premiumManager = PremiumManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(premiumManager)
         }
     }
 }

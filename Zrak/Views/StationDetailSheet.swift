@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 
 struct StationDetailSheet: View {
+    @EnvironmentObject private var premiumManager: PremiumManager
     @StateObject private var viewModel: StationDetailViewModel
 
     private let columns = [
@@ -20,14 +21,25 @@ struct StationDetailSheet: View {
                     badge
                     updatedCard
                     metricsGrid
-                    miniChartSection
+                    if premiumManager.hasPremiumAccess {
+                        miniChartSection
+                    } else {
+                        lockedChartSection
+                    }
                 }
                 .padding()
             }
             .navigationTitle(viewModel.stationName)
             .navigationBarTitleDisplayMode(.inline)
             .task {
+                guard premiumManager.hasPremiumAccess else { return }
                 await viewModel.loadChartIfNeeded()
+            }
+            .onChange(of: premiumManager.hasPremiumAccess) { _, hasAccess in
+                guard hasAccess else { return }
+                Task {
+                    await viewModel.loadChartIfNeeded()
+                }
             }
         }
     }
@@ -143,6 +155,24 @@ struct StationDetailSheet: View {
             }
         }
         .padding(12)
+        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var lockedChartSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Trend kakovosti zraka")
+                .font(.headline)
+            Text("Graf je na voljo v Zrak Premium.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Button("Odkleni Premium") {
+                premiumManager.presentPaywall(for: .stationChart)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

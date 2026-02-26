@@ -1,0 +1,38 @@
+{
+  "identifier" : "F3DBF1B2-8F90-47D4-96E0-B7E89D810001",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "39.99",
+      "familyShareable" : false,
+      "internalID" : "BEE3E455-9C8F-45C4-BFD9-3D4DCA7C1003",
+      "localizations" : [
+        {
+          "description" : "Enkratni nakup, ki odklene vse premium funkcije aplikacije Zrak.",
+          "displayName" : "Zrak Premium",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Enkratni nakup, ki odklene vse premium funkcije aplikacije Zrak.",
+          "displayName" : "Zrak Premium",
+          "locale" : "sl_SI"
+        }
+      ],
+      "productID" : "com.david.Zrak.premium.lifetime",
+      "referenceName" : "Zrak Premium",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "123456789",
+    "_developerTeamID" : "AX2Z5LF5SG",
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "sl_SI",
+    "_storefront" : "SVN"
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

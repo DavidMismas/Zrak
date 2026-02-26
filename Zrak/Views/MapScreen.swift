@@ -2,8 +2,10 @@ import MapKit
 import SwiftUI
 
 struct MapScreen: View {
+    @EnvironmentObject private var premiumManager: PremiumManager
     @StateObject private var viewModel = MapViewModel()
     @State private var isShowingAirQualityInfo = false
+    @State private var isShowingExperimentalMap = false
 
     var body: some View {
         NavigationStack {
@@ -62,18 +64,26 @@ struct MapScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        ExperimentalAirQualityMapView(
-                            stations: viewModel.stations,
-                            lastUpdated: viewModel.lastUpdated
-                        )
+                    Button {
+                        if premiumManager.hasPremiumAccess {
+                            isShowingExperimentalMap = true
+                        } else {
+                            premiumManager.presentPaywall(for: .experimentalMap)
+                        }
                     } label: {
                         Image(systemName: "flask")
                     }
-                    .accessibilityLabel("Eksperimentalni prikaz Slovenije")
+                    .accessibilityLabel(premiumManager.hasPremiumAccess ? "Eksperimentalni prikaz Slovenije" : "Eksperimentalni prikaz Slovenije (Premium)")
                 }
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        premiumManager.presentPaywall(for: .all)
+                    } label: {
+                        Image(systemName: premiumManager.hasPremiumAccess ? "checkmark.seal" : "crown")
+                    }
+                    .accessibilityLabel(premiumManager.hasPremiumAccess ? "Premium je aktiven" : "Odpri Premium")
+
                     Button {
                         isShowingAirQualityInfo = true
                     } label: {
@@ -91,6 +101,12 @@ struct MapScreen: View {
             }
             .sheet(isPresented: $isShowingAirQualityInfo) {
                 AirQualityInfoSheet()
+            }
+            .navigationDestination(isPresented: $isShowingExperimentalMap) {
+                ExperimentalAirQualityMapView(
+                    stations: viewModel.stations,
+                    lastUpdated: viewModel.lastUpdated
+                )
             }
             .sheet(item: $viewModel.selectedStation) { item in
                 StationDetailSheet(item: item, service: viewModel.arsoService)
@@ -153,4 +169,5 @@ struct MapScreen: View {
 
 #Preview {
     MapScreen()
+        .environmentObject(PremiumManager.preview(unlocked: false))
 }
