@@ -39,7 +39,6 @@ final class PremiumManager: ObservableObject {
     @Published private(set) var products: [Product] = []
     @Published private(set) var isLoadingProducts = false
     @Published private(set) var isPurchasing = false
-    @Published private(set) var isTestFlightBuild = false
     @Published var paywallFeature: LockedFeature = .all
     @Published var isPaywallPresented = false
     @Published var errorMessage: String?
@@ -78,12 +77,29 @@ final class PremiumManager: ObservableObject {
 
         isLoadingProducts = true
         defer { isLoadingProducts = false }
+        errorMessage = nil
 
-        do {
-            let fetched = try await Product.products(for: PremiumStoreConfig.productIDs)
-            products = fetched.sorted(by: Self.sortProducts)
-        } catch {
-            errorMessage = "Produktov trenutno ni mogoče naložiti. Poskusi znova."
+        for attempt in 0 ..< 3 {
+            do {
+                let fetched = try await Product.products(for: PremiumStoreConfig.productIDs)
+                    .sorted(by: Self.sortProducts)
+
+                if !fetched.isEmpty {
+                    products = fetched
+                    return
+                }
+            } catch {
+                if attempt == 2 {
+                    errorMessage = "Produktov trenutno ni mogoče naložiti. Poskusi znova."
+                }
+            }
+
+            guard attempt < 2 else { break }
+            try? await Task.sleep(nanoseconds: UInt64((attempt + 1) * 1_000_000_000))
+        }
+
+        if products.isEmpty, errorMessage == nil {
+            errorMessage = "Ponudba trenutno ni na voljo. Preveri povezavo in poskusi znova."
         }
     }
 
@@ -127,16 +143,6 @@ final class PremiumManager: ObservableObject {
     }
 
     func refreshEntitlementStatus() async {
-        let isTestFlight = await DistributionChannel.currentIsTestFlight()
-        if isTestFlightBuild != isTestFlight {
-            isTestFlightBuild = isTestFlight
-        }
-
-        if isTestFlight {
-            applyPremiumState(true)
-            return
-        }
-
         var unlocked = false
 
         for await result in Transaction.currentEntitlements {
@@ -214,27 +220,4 @@ enum PremiumStoreConfig {
     static let productIDs: [String] = [
         "com.david.Zrak.premium.lifetime"
     ]
-}
-
-enum DistributionChannel {
-    static func currentIsTestFlight() async -> Bool {
-        #if targetEnvironment(simulator)
-        return false
-        #else
-        do {
-            let verification = try await AppTransaction.shared
-
-            switch verification {
-            case .verified(let appTransaction):
-                return appTransaction.environment == .sandbox
-
-            case .unverified(let appTransaction, _):
-                // Fallback inferenca okolja, tudi če preverjanje ni uspelo.
-                return appTransaction.environment == .sandbox
-            }
-        } catch {
-            return false
-        }
-        #endif
-    }
 }

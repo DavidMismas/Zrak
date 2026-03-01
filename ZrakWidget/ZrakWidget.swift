@@ -84,11 +84,7 @@ struct AirQualityWidgetProvider: AppIntentTimelineProvider {
             return true
         }
 
-        if await hasPremiumEntitlement() {
-            return true
-        }
-
-        return await WidgetDistributionChannel.currentIsTestFlight()
+        return await hasPremiumEntitlement()
     }
 
     private func hasPremiumEntitlement() async -> Bool {
@@ -143,28 +139,6 @@ struct AirQualityWidgetProvider: AppIntentTimelineProvider {
                 WidgetSharedChartPoint(timestamp: Date(), value: 12)
             ]
         )
-    }
-}
-
-enum WidgetDistributionChannel {
-    static func currentIsTestFlight() async -> Bool {
-        #if targetEnvironment(simulator)
-        return false
-        #else
-        do {
-            let verification = try await AppTransaction.shared
-
-            switch verification {
-            case .verified(let appTransaction):
-                return appTransaction.environment == .sandbox
-
-            case .unverified(let appTransaction, _):
-                return appTransaction.environment == .sandbox
-            }
-        } catch {
-            return false
-        }
-        #endif
     }
 }
 

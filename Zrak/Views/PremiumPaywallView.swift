@@ -36,11 +36,7 @@ struct PremiumPaywallView: View {
             Text(premiumManager.paywallFeature.title)
                 .font(.headline)
 
-            if premiumManager.isTestFlightBuild {
-                Text("TestFlight build: Premium je samodejno odklenjen za testiranje.")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.green)
-            } else if premiumManager.hasPremiumAccess {
+            if premiumManager.hasPremiumAccess {
                 Text("Premium je aktiven na tej napravi.")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.green)
@@ -81,9 +77,18 @@ struct PremiumPaywallView: View {
                 ProgressView("Nalagam ponudbe ...")
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if premiumManager.products.isEmpty {
-                Text("Ni aktivnih produktov. Dodaj produkte v App Store Connect in preveri ID-je v `PremiumStoreConfig`.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ni aktivnih produktov. Dodaj produkte v App Store Connect in preveri ID-je v `PremiumStoreConfig`.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button("Poskusi znova") {
+                        Task {
+                            await premiumManager.loadProducts(forceReload: true)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
             } else {
                 ForEach(premiumManager.products, id: \.id) { product in
                     Button {
@@ -111,7 +116,7 @@ struct PremiumPaywallView: View {
                         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .disabled(premiumManager.isPurchasing || premiumManager.isTestFlightBuild)
+                    .disabled(premiumManager.isPurchasing)
                 }
             }
         }

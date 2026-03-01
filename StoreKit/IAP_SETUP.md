@@ -11,8 +11,8 @@ IDs are used in `/Users/david/Documents/CODE/Zrak/Zrak/Services/PremiumManager.s
 - Experimental Slovenia interpolation view
 
 ## TestFlight behavior
-- Premium is automatically unlocked on TestFlight (StoreKit `AppTransaction.environment == .sandbox`).
-- This is implemented in `DistributionChannel.currentIsTestFlight()`.
+- TestFlight and App Review use sandbox purchase flow.
+- Premium is unlocked only after successful purchase or restore (same behavior as production).
 
 ## App Store Connect checklist
 1. Add one non-consumable product:
