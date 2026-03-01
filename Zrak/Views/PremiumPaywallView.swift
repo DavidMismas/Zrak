@@ -96,24 +96,42 @@ struct PremiumPaywallView: View {
                             await premiumManager.purchase(product)
                         }
                     } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(product.displayName)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                Text(product.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .firstTextBaseline) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(product.displayName)
+                                        .font(.headline.weight(.semibold))
+                                    Text(product.description)
+                                        .font(.caption)
+                                        .lineLimit(2)
+                                }
+                                Spacer(minLength: 8)
+                                Text(product.displayPrice)
+                                    .font(.title3.weight(.bold))
                             }
-                            Spacer(minLength: 8)
-                            Text(product.displayPrice)
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
+
+                            HStack(spacing: 6) {
+                                Text("Kupi zdaj")
+                                    .font(.subheadline.weight(.semibold))
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.subheadline)
+                            }
                         }
-                        .padding(12)
+                        .foregroundStyle(.white)
+                        .padding(14)
                         .frame(maxWidth: .infinity)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .background(
+                            LinearGradient(
+                                colors: [Color.green.opacity(0.95), Color.green.opacity(0.75)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .disabled(premiumManager.isPurchasing)

@@ -137,6 +137,9 @@ final class PremiumManager: ObservableObject {
         do {
             try await AppStore.sync()
             await refreshEntitlementStatus()
+            if !hasPremiumAccess {
+                errorMessage = "Za ta Apple ID ni najdenih preteklih nakupov za Zrak Premium."
+            }
         } catch {
             errorMessage = "Obnova nakupov ni uspela."
         }
