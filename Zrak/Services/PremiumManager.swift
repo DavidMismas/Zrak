@@ -43,6 +43,7 @@ final class PremiumManager: ObservableObject {
     @Published var isPaywallPresented = false
     @Published var errorMessage: String?
 
+    private var bootstrapTask: Task<Void, Never>?
     private var transactionUpdatesTask: Task<Void, Never>?
 
     init(startLiveTasks: Bool = true) {
@@ -52,12 +53,17 @@ final class PremiumManager: ObservableObject {
 
         transactionUpdatesTask = Task { [weak self] in
             guard let self else { return }
-            await self.bootstrap()
             await self.observeTransactionUpdates()
+        }
+
+        bootstrapTask = Task { [weak self] in
+            guard let self else { return }
+            await self.bootstrap()
         }
     }
 
     deinit {
+        bootstrapTask?.cancel()
         transactionUpdatesTask?.cancel()
     }
 
@@ -68,34 +74,41 @@ final class PremiumManager: ObservableObject {
 
     func loadProductsIfNeeded() async {
         guard products.isEmpty else { return }
-        await loadProducts(forceReload: false)
+        await loadProducts(forceReload: false, maxAttempts: 8, delaySeconds: 2)
     }
 
     func loadProducts(forceReload: Bool) async {
+        await loadProducts(forceReload: forceReload, maxAttempts: 3, delaySeconds: 1)
+    }
+
+    private func loadProducts(forceReload: Bool, maxAttempts: Int, delaySeconds: Double) async {
         if isLoadingProducts { return }
         if !forceReload, !products.isEmpty { return }
 
         isLoadingProducts = true
         defer { isLoadingProducts = false }
         errorMessage = nil
+        let attempts = max(1, maxAttempts)
 
-        for attempt in 0 ..< 3 {
+        for attempt in 0 ..< attempts {
             do {
                 let fetched = try await Product.products(for: PremiumStoreConfig.productIDs)
                     .sorted(by: Self.sortProducts)
 
                 if !fetched.isEmpty {
                     products = fetched
+                    errorMessage = nil
                     return
                 }
             } catch {
-                if attempt == 2 {
+                if attempt == attempts - 1 {
                     errorMessage = "Produktov trenutno ni mogoče naložiti. Poskusi znova."
                 }
             }
 
-            guard attempt < 2 else { break }
-            try? await Task.sleep(nanoseconds: UInt64((attempt + 1) * 1_000_000_000))
+            guard attempt < attempts - 1 else { break }
+            let delay = UInt64(delaySeconds * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: delay)
         }
 
         if products.isEmpty, errorMessage == nil {

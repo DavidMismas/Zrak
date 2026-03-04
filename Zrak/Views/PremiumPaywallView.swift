@@ -4,6 +4,7 @@ import SwiftUI
 struct PremiumPaywallView: View {
     @EnvironmentObject private var premiumManager: PremiumManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,17 @@ struct PremiumPaywallView: View {
             }
             .task {
                 await premiumManager.loadProductsIfNeeded()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active,
+                      premiumManager.products.isEmpty,
+                      !premiumManager.isLoadingProducts else {
+                    return
+                }
+
+                Task {
+                    await premiumManager.loadProducts(forceReload: true)
+                }
             }
         }
     }
@@ -78,7 +90,7 @@ struct PremiumPaywallView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if premiumManager.products.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Ni aktivnih produktov. Dodaj produkte v App Store Connect in preveri ID-je v `PremiumStoreConfig`.")
+                    Text("Ponudba se trenutno še nalaga iz App Store. Če se ne prikaže samodejno, poskusi znova.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
